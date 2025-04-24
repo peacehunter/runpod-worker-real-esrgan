@@ -6,6 +6,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+# Install Torch
+RUN pip3 install --no-cache-dir torch==2.0.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 && \
+    pip3 install numpy  # Add this line to install NumPy explicitly
+
 # Upgrade apt packages and install required dependencies
 RUN apt update && \
     apt upgrade -y && \

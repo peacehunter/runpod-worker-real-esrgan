@@ -11,7 +11,7 @@ RUN apt update && \
     apt upgrade -y && \
     apt install -y \
       python3-dev \
-      python3-pip \  # Ensure pip3 is installed
+      python3-pip \  
       python3.10-venv \
       fonts-dejavu-core \
       rsync \

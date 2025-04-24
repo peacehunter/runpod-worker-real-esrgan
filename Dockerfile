@@ -6,16 +6,12 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-# Install Torch
-RUN pip3 install --no-cache-dir torch==2.0.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 && \
-    pip3 install numpy  # Add this line to install NumPy explicitly
-
 # Upgrade apt packages and install required dependencies
 RUN apt update && \
     apt upgrade -y && \
     apt install -y \
       python3-dev \
-      python3-pip \
+      python3-pip \  # Ensure pip3 is installed
       python3.10-venv \
       fonts-dejavu-core \
       rsync \
@@ -37,6 +33,10 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get clean -y
 
+# Install Torch and NumPy
+RUN pip3 install --no-cache-dir torch==2.0.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 && \
+    pip3 install numpy
+
 # Install the models
 WORKDIR /workspace
 RUN mkdir -p /workspace/models/ESRGAN && \
@@ -53,7 +53,7 @@ RUN mkdir -p /workspace/models/ESRGAN && \
     mkdir -p /workspace/models/GFPGAN && \
     wget -O /workspace/models/GFPGAN/GFPGANv1.3.pth https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.3.pth
 
-# Install Torch
+# Install Torch again for redundancy
 RUN pip3 install --no-cache-dir torch==2.0.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 
 # 1. Clone the worker repo

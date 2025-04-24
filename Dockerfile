@@ -6,13 +6,12 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-
 # Upgrade apt packages and install required dependencies
 RUN apt update && \
     apt upgrade -y && \
     apt install -y \
       python3-dev \
-      python3-pip \  
+      python3-pip \
       python3.10-venv \
       fonts-dejavu-core \
       rsync \
@@ -34,14 +33,9 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/* && \
     apt-get clean -y
 
-# Install Torch and NumPy
+# Install PyTorch, NumPy, and other Python dependencies
 RUN pip3 install --no-cache-dir torch==2.0.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 && \
-    pip3 install numpy
-
-
-RUN pip3 install numpy
-
-RUN pip3 install basicsr
+    pip3 install --no-cache-dir numpy basicsr
 
 # Install the models
 WORKDIR /workspace
@@ -52,21 +46,11 @@ RUN mkdir -p /workspace/models/ESRGAN && \
     wget https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.1/RealESRNet_x4plus.pth && \
     wget https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.2.4/RealESRGAN_x4plus_anime_6B.pth && \
     wget https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth && \
-    # Download additional models from Huggingface
-    # wget https://huggingface.co/snappic/upscalers/resolve/main/4x-UltraSharp.pth && \
-    # wget https://huggingface.co/snappic/upscalers/resolve/main/lollypop.pth && \
     # Download the GFPGAN models
     mkdir -p /workspace/models/GFPGAN && \
     wget -O /workspace/models/GFPGAN/GFPGANv1.3.pth https://github.com/TencentARC/GFPGAN/releases/download/v1.3.0/GFPGANv1.3.pth
 
-# Install Torch again for redundancy
-RUN pip3 install --no-cache-dir torch==2.0.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-
-# 1. Clone the worker repo
-# 2. Install requirements
-# 3. Setup the local requirements
-# 4. Create test_input.json file for test inference
-# 5. Run test inference using rp_handler.py to cache the models
+# Clone the worker repo, install dependencies, and run setup
 RUN git clone https://github.com/ashleykleynhans/runpod-worker-real-esrgan.git && \
     cd runpod-worker-real-esrgan && \
     pip3 install -r requirements.txt && \
@@ -80,4 +64,4 @@ ADD rp_handler.py /workspace/runpod-worker-real-esrgan/rp_handler.py
 
 # Start the container
 RUN chmod +x /start.sh
-ENTRYPOINT /start.sh
+ENTRYPOINT ["/start.sh"]

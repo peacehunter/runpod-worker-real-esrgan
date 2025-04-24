@@ -6,9 +6,6 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
-RUN pip3 install numpy
-
-RUN pip3 install basicsr
 
 # Upgrade apt packages and install required dependencies
 RUN apt update && \
@@ -40,6 +37,11 @@ RUN apt update && \
 # Install Torch and NumPy
 RUN pip3 install --no-cache-dir torch==2.0.1 torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 && \
     pip3 install numpy
+
+
+RUN pip3 install numpy
+
+RUN pip3 install basicsr
 
 # Install the models
 WORKDIR /workspace

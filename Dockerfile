@@ -6,6 +6,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
+RUN pip3 install numpy
+
+RUN pip3 install basicsr
+
 # Upgrade apt packages and install required dependencies
 RUN apt update && \
     apt upgrade -y && \

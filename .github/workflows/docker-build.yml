@@ -17,9 +17,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
-        run: docker build -t real-esrgan-img .
+      - name: Install NumPy
+        run: python3 -m pip install --upgrade pip && pip install numpy
+
       - name: Validate Python dependencies
-        run : 
+        run: |
           python3 -m pip install --upgrade pip
           pip install -r requirements.txt
+
+      - name: Build Docker image
+        run: docker build -t real-esrgan-img .

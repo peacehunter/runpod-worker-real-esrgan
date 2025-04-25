@@ -11,7 +11,6 @@ from runpod.serverless.modules.rp_logger import RunPodLogger
 from basicsr.archs.rrdbnet_arch import RRDBNet
 from basicsr.utils.download_util import load_file_from_url
 from realesrgan import RealESRGANer
-# from realesrgan.archs.srvgg_arch import SRVGGNetCompac
 from PIL import Image
 from schemas.input import INPUT_SCHEMA
 import torch  # Import torch for CUDA memory management
@@ -23,6 +22,9 @@ MODELS_PATH = f'{VOLUME_PATH}/models/ESRGAN'
 GFPGAN_MODEL_PATH = f'{VOLUME_PATH}/models/GFPGAN/GFPGANv1.3.pth'
 logger = RunPodLogger()
 
+# Set a memory fraction limit and avoid fragmentation
+torch.cuda.set_per_process_memory_fraction(0.8, GPU_ID)  # Limit to 80% of GPU memory
+torch.backends.cudnn.benchmark = True  # Enable optimization for dynamic input sizes
 
 # ---------------------------------------------------------------------------- #
 # Application Functions                                                        #
@@ -47,25 +49,8 @@ def upscale(
         - RealESRGAN_x2plus
         - realesr-animevideov3
         - realesr-general-x4v3
-
-    image_extension: .jpg or .png
-
-    outscale: The final upsampling scale of the image
-
-    face_enhance: Whether or not to enhance the face
-
-    tile: Tile size, 0 for no tile during testing
-
-    tile_pad: Tile padding (default = 10)
-
-    pre_pad: Pre padding size at each border
-
-    denoise_strength: 0 for weak denoise (keep noise)
-                      1 for strong denoise ability
-                      Only used for the realesr-general-x4v3 model
     """
     
-    # Determine models according to model names
     model_name = model_name.split('.')[0]
 
     if image_extension == '.jpg':
@@ -75,30 +60,29 @@ def upscale(
     else:
         raise ValueError(f'Unsupported image type, must be either JPEG or PNG')
 
-    if model_name == 'RealESRGAN_x4plus':  # x4 RRDBNet model
+    # Select model and net scale based on the model name
+    if model_name == 'RealESRGAN_x4plus':
         model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
         netscale = 4
-    elif model_name == 'RealESRNet_x4plus':  # x4 RRDBNet model
+    elif model_name == 'RealESRNet_x4plus':
         model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
         netscale = 4
-    elif model_name == 'RealESRGAN_x4plus_anime_6B':  # x4 RRDBNet model with 6 blocks
+    elif model_name == 'RealESRGAN_x4plus_anime_6B':
         model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=6, num_grow_ch=32, scale=4)
         netscale = 4
-    elif model_name == 'RealESRGAN_x2plus':  # x2 RRDBNet model
+    elif model_name == 'RealESRGAN_x2plus':
         model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=2)
         netscale = 2
     else:
         raise ValueError(f'Unsupported model: {model_name}')
 
-    # Determine model paths
     model_path = os.path.join(MODELS_PATH, model_name + '.pth')
-
     if not os.path.isfile(model_path):
         raise Exception(f'Could not find model: {model_path}')
 
-    # Use dni to control the denoise strength
     dni_weight = None
 
+    # Initialize RealESRGANer for upscaling
     upsampler = RealESRGANer(
         scale=netscale,
         model_path=model_path,
@@ -111,7 +95,8 @@ def upscale(
         gpu_id=GPU_ID
     )
 
-    if face_enhance:  # Use GFPGAN for face enhancement
+    # If face enhancement is enabled, initialize GFPGAN
+    if face_enhance:
         from gfpgan import GFPGANer
         face_enhancer = GFPGANer(
             model_path=GFPGAN_MODEL_PATH,
@@ -139,29 +124,33 @@ def upscale(
         result_image.save(output_buffer, format=image_format)
         image_data = output_buffer.getvalue()
 
-        # Clear unused CUDA memory after processing
+        # Explicitly clear CUDA memory
+        del upsampler
+        if face_enhance:
+            del face_enhancer
         torch.cuda.empty_cache()
 
         return base64.b64encode(image_data).decode('utf-8')
 
-
+# ---------------------------------------------------------------------------- #
+# Helper Functions                                                            #
+# ---------------------------------------------------------------------------- #
 def determine_file_extension(image_data):
     image_extension = None
-
     try:
         if image_data.startswith('/9j/'):
             image_extension = '.jpg'
         elif image_data.startswith('iVBORw0Kg'):
             image_extension = '.png'
         else:
-            # Default to png if we can't figure out the extension
             image_extension = '.png'
     except Exception as e:
         image_extension = '.png'
-
     return image_extension
 
-
+# ---------------------------------------------------------------------------- #
+# RunPod API Handler                                                           #
+# ---------------------------------------------------------------------------- #
 def upscaling_api(input):
     if not os.path.exists(TMP_PATH):
         os.makedirs(TMP_PATH)
@@ -176,12 +165,10 @@ def upscaling_api(input):
     pre_pad = input['pre_pad']
     half = input['half']
 
-    # Decode the source image data
     source_image = base64.b64decode(source_image_data)
     source_file_extension = determine_file_extension(source_image_data)
     source_image_path = f'{TMP_PATH}/source_{unique_id}{source_file_extension}'
 
-    # Save the source image to disk
     with open(source_image_path, 'wb') as source_file:
         source_file.write(source_image)
 
@@ -199,38 +186,25 @@ def upscaling_api(input):
         )
     except Exception as e:
         logger.error(f'An exception was raised: {e}')
+        return {'error': traceback.format_exc(), 'refresh_worker': True}
 
-        return {
-            'error': traceback.format_exc(),
-            'refresh_worker': True
-        }
-
-    # Clean up temporary images
     os.remove(source_image_path)
 
-    return {
-        'image': result_image
-    }
-
+    return {'image': result_image}
 
 # ---------------------------------------------------------------------------- #
-# RunPod Handler                                                               #
+# RunPod Handler Function                                                      #
 # ---------------------------------------------------------------------------- #
 def handler(event):
     validated_input = validate(event['input'], INPUT_SCHEMA)
-
     if 'errors' in validated_input:
-        return {
-            'errors': validated_input['errors']
-        }
+        return {'errors': validated_input['errors']}
 
     return upscaling_api(validated_input['validated_input'])
 
-
+# ---------------------------------------------------------------------------- #
+# Main Entry Point                                                            #
+# ---------------------------------------------------------------------------- #
 if __name__ == "__main__":
     logger.info('Starting RunPod Serverless...')
-    runpod.serverless.start(
-        {
-            'handler': handler
-        }
-    )
+    runpod.serverless.start({'handler': handler})

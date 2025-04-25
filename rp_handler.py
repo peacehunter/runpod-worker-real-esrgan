@@ -200,6 +200,7 @@ def upscaling_api(input):
     source_file_extension = determine_file_extension(source_image_data)
     source_image_path = f'{TMP_PATH}/source_{unique_id}{source_file_extension}'
 
+    
     # Save the source image to disk
     with open(source_image_path, 'wb') as source_file:
         source_file.write(source_image)
@@ -218,6 +219,9 @@ def upscaling_api(input):
         )
     except Exception as e:
         logger.error(f'An exception was raised: {e}')
+        logger.error(f'Traceback: {traceback.format_exc()}')
+        logger.error(f'Type of source_image: {type(source_image)}')
+
 
         return {
             'error': traceback.format_exc(),

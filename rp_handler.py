@@ -15,6 +15,9 @@ from PIL import Image
 from schemas.input import INPUT_SCHEMA
 import torch  # Import torch for CUDA memory management
 
+# Set the environment variable before importing PyTorch or running any operations
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128'
+
 GPU_ID = 0
 VOLUME_PATH = '/workspace'
 TMP_PATH = f'{VOLUME_PATH}/tmp'

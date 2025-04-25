@@ -184,7 +184,7 @@ def upscaling_api(input):
         os.makedirs(TMP_PATH)
 
     unique_id = uuid.uuid4()
-    source_image_data = base64.b64decode(input['source_image'])
+    source_image_data = input['source_image']
     model_name = input['model']
     outscale = input['scale']
     face_enhance = input['face_enhance']
@@ -194,16 +194,13 @@ def upscaling_api(input):
     half = input['half']
 
     # Decode the source image data
-   # source_image = base64.b64decode(source_image_data)
-    #source_image = input['source_image']  # Already in base64 format
-
+    source_image = base64.b64decode(source_image_data)
     source_file_extension = determine_file_extension(source_image_data)
     source_image_path = f'{TMP_PATH}/source_{unique_id}{source_file_extension}'
 
-    
     # Save the source image to disk
     with open(source_image_path, 'wb') as source_file:
-        source_file.write(source_image_data)
+        source_file.write(source_image)
 
     try:
         result_image = upscale(
@@ -219,9 +216,6 @@ def upscaling_api(input):
         )
     except Exception as e:
         logger.error(f'An exception was raised: {e}')
-        logger.error(f'Traceback: {traceback.format_exc()}')
-        logger.error(f'Type of source_image: {type(source_image_data)}')
-
 
         return {
             'error': traceback.format_exc(),

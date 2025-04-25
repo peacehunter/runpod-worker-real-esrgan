@@ -16,7 +16,7 @@ from schemas.input import INPUT_SCHEMA
 import torch  # Import torch for CUDA memory management
 
 # Combine both settings in a single environment variable assignment
-os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:128,expandable_segments:True'
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb:64'  # or try a different value
 
 
 GPU_ID = 0

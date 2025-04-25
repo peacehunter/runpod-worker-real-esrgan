@@ -194,7 +194,9 @@ def upscaling_api(input):
     half = input['half']
 
     # Decode the source image data
-    source_image = base64.b64decode(source_image_data)
+    #source_image = base64.b64decode(source_image_data)
+    source_image = input['source_image']  # Already in base64 format
+
     source_file_extension = determine_file_extension(source_image_data)
     source_image_path = f'{TMP_PATH}/source_{unique_id}{source_file_extension}'
 

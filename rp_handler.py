@@ -14,6 +14,7 @@ from realesrgan import RealESRGANer
 # from realesrgan.archs.srvgg_arch import SRVGGNetCompac
 from PIL import Image
 from schemas.input import INPUT_SCHEMA
+import torch  # Import torch for CUDA memory management
 
 GPU_ID = 0
 VOLUME_PATH = '/workspace'
@@ -63,8 +64,8 @@ def upscale(
                       1 for strong denoise ability
                       Only used for the realesr-general-x4v3 model
     """
-
-    # determine models according to model names
+    
+    # Determine models according to model names
     model_name = model_name.split('.')[0]
 
     if image_extension == '.jpg':
@@ -86,39 +87,17 @@ def upscale(
     elif model_name == 'RealESRGAN_x2plus':  # x2 RRDBNet model
         model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=2)
         netscale = 2
-    # TODO: Implement these
-    # elif model_name == 'realesr-animevideov3':  # x4 VGG-style model (XS size)
-    #     model = SRVGGNetCompact(num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=16, upscale=4, act_type='prelu')
-    #     netscale = 4
-    #     file_url = ['https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-animevideov3.pth']
-    # elif model_name == 'realesr-general-x4v3':  # x4 VGG-style model (S size)
-    #     model = SRVGGNetCompact(num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=32, upscale=4, act_type='prelu')
-    #     netscale = 4
-    #     file_url = [
-    #         'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-wdn-x4v3.pth',
-    #         'https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesr-general-x4v3.pth'
-    #     ]
-    elif model_name == '4x-UltraSharp':  # x4 RRDBNet model
-        model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
-        netscale = 4
-    elif model_name == 'lollypop':  # x4 RRDBNet model
-        model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64, num_block=23, num_grow_ch=32, scale=4)
-        netscale = 4
     else:
         raise ValueError(f'Unsupported model: {model_name}')
 
-    # determine model paths
+    # Determine model paths
     model_path = os.path.join(MODELS_PATH, model_name + '.pth')
 
     if not os.path.isfile(model_path):
         raise Exception(f'Could not find model: {model_path}')
 
-    # use dni to control the denoise strength
+    # Use dni to control the denoise strength
     dni_weight = None
-    # if model_name == 'realesr-general-x4v3' and denoise_strength != 1:
-    #     wdn_model_path = model_path.replace('realesr-general-x4v3', 'realesr-general-wdn-x4v3')
-    #     model_path = [model_path, wdn_model_path]
-    #     dni_weight = [denoise_strength, 1 - denoise_strength]
 
     upsampler = RealESRGANer(
         scale=netscale,
@@ -159,6 +138,10 @@ def upscale(
         output_buffer = io.BytesIO()
         result_image.save(output_buffer, format=image_format)
         image_data = output_buffer.getvalue()
+
+        # Clear unused CUDA memory after processing
+        torch.cuda.empty_cache()
+
         return base64.b64encode(image_data).decode('utf-8')
 
 
